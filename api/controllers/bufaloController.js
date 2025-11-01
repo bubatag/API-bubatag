@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 // Função para listar os bufalos
 const getAllBufalo = async (req, res) => {
   try {
-    const games = await bufaloService.getAll();
+    const bufalos = await bufaloService.getAll();
     // Requisição feita com sucesso - Cod. 200 (OK)
     res.status(200).json({ bufalos: bufalos });
   } catch (error) {
@@ -21,9 +21,9 @@ const createBufalo = async (req, res) => {
 
     // Desestruturação
     // Capturando valores
-    const { title, year, price, descriptions } = req.body; //VERIFICAR CAMPOS NO BANCO******
+    const { title, year, price, descriptions } = req.body;          //VERIFICAR CAMPOS NO BANCO******
     // Cadastrando no banco
-    await gameService.Create(title, year, price, descriptions); //VERIFICAR CAMPOS NO BANCO******
+    await bufaloService.Create(title, year, price, descriptions);   //VERIFICAR CAMPOS NO BANCO******
     res.sendStatus(201); // Código 201 (CREATED)
   } catch (error) {
     console.log(error);
@@ -55,8 +55,8 @@ const updateBufalo = async (req, res) => {
       const id = req.params.id;
       // Desestruturação
       //const title = req.body.title
-      const { title, year, price, descriptions } = req.body; //VERIFICAR CAMPOS NO BANCO******
-      bufaloService.Update(id, title, year, price, descriptions); //VERIFICAR CAMPOS NO BANCO******
+      const { title, year, price, descriptions } = req.body;          //VERIFICAR CAMPOS NO BANCO******
+      bufaloService.Update(id, title, year, price, descriptions);     //VERIFICAR CAMPOS NO BANCO******
       res.sendStatus(200); // Código 200 (OK): Requisição bem sucedida
     } else {
       res.sendStatus(400); // Código 400 (Bad Request): Requisição mal formada
@@ -72,11 +72,11 @@ const getOneBufalo = async (req, res) => {
   try {
     if (ObjectId.isValid(req.params.id)) {
       const id = req.params.id;
-      const game = await bufaloService.getOne(id);
-      if (!game) {
+      const bufalo = await bufaloService.getOne(id);
+      if (!bufalo) {
         res.sendStatus(404); // Código 404: NOT FOUND - Não encontrado
       } else {
-        res.status(200).json({ game });
+        res.status(200).json({ bufalo });
       }
     } else {
       res.sendStatus(400); // Código 400: Bad Request

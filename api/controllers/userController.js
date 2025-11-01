@@ -1,7 +1,8 @@
 import userService from "../services/userService.js";
 import jwt from "jsonwebtoken";
+
 // JWTSecret
-const JWTSecret = "apigamessecret";
+const JWTSecret = "apibubatagsecret";
 
 // Cadastrando um usuário
 const createUser = async (req, res) => {
