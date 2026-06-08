@@ -7,9 +7,9 @@ const JWTSecret = "apibubatagsecret";
 // Cadastrando um usuário
 const createUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body; // INSERIR CCIR ASSIM COMO NO MOBILE *****
+    const { nome, email, senha, CCIR } = req.body;
     // AQUI SERIA FEITO O PROCESSO DE HASH DE SENHA
-    await userService.Create(name, email, password);  // INSERIR CCIR ASSIM COMO NO MOBILE *****
+    await userService.Create(nome, email, senha, CCIR);
     res.sendStatus(201); // Cod. 201 (CREATED)
   } catch (error) {
     console.log(error);
@@ -20,18 +20,18 @@ const createUser = async (req, res) => {
 // Autenticando um usuário
 const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body; 
+    const { email, senha } = req.body; 
     // Se o e-mail não está vazio
     if (email != undefined) {
       // Busca o usuário no banco
       const user = await userService.getOne(email);
       // Usuário encontrado
       if (user != undefined) {
-        // Senha correta
-        if (user.password == password) {
+        // Senha correta (ainda sem hash, ajuste conforme necessário)
+        if (user.senha == senha) {
           // Gerando o token
           jwt.sign(
-            { id: user._id, email: user.email },
+            { id: user.idusuario, email: user.email },
             JWTSecret,
             { expiresIn: "48h" },
             (error, token) => {
@@ -60,3 +60,4 @@ const loginUser = async (req, res) => {
 };
 
 export default { createUser, loginUser, JWTSecret };
+
