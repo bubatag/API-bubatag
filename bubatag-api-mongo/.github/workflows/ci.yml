@@ -1,0 +1,48 @@
+name: CI/CD - Bubatag API
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Validar sintaxe
+        run: node --check src/server.js
+
+      - name: Construir imagem Docker
+        run: docker build -t bubatag-api .
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar imagem Docker
+        run: |
+          docker tag bubatag-api ghcr.io/${{ github.repository_owner }}/bubatag-api:latest
+          docker push ghcr.io/${{ github.repository_owner }}/bubatag-api:latest
