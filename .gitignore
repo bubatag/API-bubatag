@@ -4,3 +4,13 @@ node_modules/
 */.env
 api_consolidada.txt
 *.log
+# Python / Ambiente Virtual
+venv/
+*/venv/
+__pycache__/
+*/__pycache__/
+*.pyc
+
+# Relatórios gerados localmente
+*.md
+relatorios/
