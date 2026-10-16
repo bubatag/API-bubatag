@@ -13,7 +13,7 @@ module.exports = (req, res, next) => {
     return res.status(400).json({ sucesso: false, mensagem: 'Temperatura fora dos limites aceitáveis.' });
   }
 
-  const estadosValidos = ['Ocioso', 'Alerta', 'Estresse Térmico', 'Estresse Crítico', 'Estressado'];
+  const estadosValidos = ['Normal', 'Ocioso', 'Alerta', 'Estresse Térmico', 'Estresse Crítico', 'Estressado'];
   if (estado_estresse && !estadosValidos.includes(estado_estresse)) {
     return res.status(400).json({
       sucesso: false,

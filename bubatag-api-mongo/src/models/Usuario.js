@@ -10,8 +10,8 @@ const DadoBiometricoSchema = new mongoose.Schema({
 const HistoricoEstresseSchema = new mongoose.Schema({
   estado_estresse: {
     type: String,
-    enum: ['Ocioso', 'Alerta', 'Estresse Térmico', 'Estresse Crítico', 'Estressado'],
-    default: 'Ocioso'
+    enum: ['Normal', 'Ocioso', 'Alerta', 'Estresse Térmico', 'Estresse Crítico', 'Estressado'],
+    default: 'Normal'
   },
   data_estresse: { type: Date, default: Date.now },
   ativo: { type: Boolean, default: true }

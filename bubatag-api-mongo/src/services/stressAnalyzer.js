@@ -1,42 +1,44 @@
-/**
- * Classificador fisiológico de estresse para bubalinos (Bubalus bubalis).
- */
-exports.avaliarEstresse = (bpm, temperatura) => {
-  const bpmNum = Number(bpm);
-  const tempNum = Number(temperatura);
+class StressAnalyzer {
+  avaliarEstresse(batimento, temperatura) {
+    const bpm = Number(batimento);
+    const temp = Number(temperatura);
 
-  const LIMIAR_BPM_ALERTA = 78.0;
-  const LIMIAR_BPM_CRITICO = 88.0;
-  const LIMIAR_TEMP_ALERTA = 39.3;
-  const LIMIAR_TEMP_CRITICO = 39.8;
+    const LIMITE_BPM = 80;
+    const LIMITE_TEMP = 39.2;
 
-  // 1. Estresse Crítico: taquicardia severa + hipertermia acentuada
-  if (bpmNum >= LIMIAR_BPM_CRITICO && tempNum >= LIMIAR_TEMP_CRITICO) {
+    const bpmAlto = bpm > LIMITE_BPM;
+    const tempAlta = temp > LIMITE_TEMP;
+
+    if (bpmAlto && tempAlta) {
+      return {
+        estado: 'Estresse Crítico',
+        nivelAlerta: 'CRITICO',
+        descricao: 'Batimentos e temperatura simultaneamente elevados.'
+      };
+    }
+
+    if (tempAlta) {
+      return {
+        estado: 'Estresse Térmico',
+        nivelAlerta: 'ALTO',
+        descricao: 'Temperatura corporal elevada (acima de 39.2°C).'
+      };
+    }
+
+    if (bpmAlto) {
+      return {
+        estado: 'Estressado',
+        nivelAlerta: 'MEDIO',
+        descricao: 'Batimentos cardíacos elevados (taquicardia acima de 80 bpm).'
+      };
+    }
+
     return {
-      estado: 'Estresse Crítico',
-      nivelAlerta: 'CRITICO'
+      estado: 'Normal',
+      nivelAlerta: 'NORMAL',
+      descricao: 'Batimentos e temperatura dentro das faixas fisiológicas normais.'
     };
   }
+}
 
-  // 2. Estresse Térmico: elevação simultânea ou calor extremo
-  if ((bpmNum >= LIMIAR_BPM_ALERTA && tempNum >= LIMIAR_TEMP_ALERTA) || tempNum >= 40.0) {
-    return {
-      estado: 'Estresse Térmico',
-      nivelAlerta: 'ALTO'
-    };
-  }
-
-  // 3. Alerta isolado: apenas um dos parâmetros fora do normal
-  if (bpmNum >= LIMIAR_BPM_ALERTA || tempNum >= LIMIAR_TEMP_ALERTA) {
-    return {
-      estado: 'Alerta',
-      nivelAlerta: 'MEDIO'
-    };
-  }
-
-  // 4. Faixa normal
-  return {
-    estado: 'Ocioso',
-    nivelAlerta: 'NORMAL'
-  };
-};
+module.exports = new StressAnalyzer();
