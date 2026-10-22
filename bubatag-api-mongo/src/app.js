@@ -5,6 +5,7 @@ const usuarioRoutes = require('./routes/usuarioRoutes');
 const coleiraRoutes = require('./routes/coleiraRoutes');
 const telemetriaRoutes = require('./routes/telemetriaRoutes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/coleiras', coleiraRoutes);
 app.use('/api/telemetria', telemetriaRoutes);
+app.use('/api/relatorios', reportRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

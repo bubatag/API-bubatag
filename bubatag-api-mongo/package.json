@@ -4,11 +4,11 @@
   "description": "API REST para monitoramento de bubalinos com MongoDB",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
-  },
+  "start": "node src/server.js",
+  "dev": "nodemon src/server.js",
+  "test": "node --test"
+},
   "dependencies": {
-    "@google/genai": "^2.30.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",

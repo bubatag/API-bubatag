@@ -1,0 +1,25 @@
+temperatura,batimento_cardiaco,estado
+37.5,55,Normal
+38.0,60,Normal
+38.2,65,Normal
+38.5,70,Normal
+38.7,75,Normal
+38.0,80,Normal
+38.4,62,Normal
+38.6,68,Normal
+39.0,90,Estressado
+39.2,95,Estressado
+38.8,100,Estressado
+39.1,105,Estressado
+39.0,110,Estressado
+38.9,85,Estressado
+39.3,92,Estressado
+38.7,98,Estressado
+39.6,120,Estresse Crítico
+40.0,130,Estresse Crítico
+40.2,140,Estresse Crítico
+39.8,125,Estresse Crítico
+40.5,150,Estresse Crítico
+39.7,115,Estresse Crítico
+40.1,135,Estresse Crítico
+40.3,145,Estresse Crítico
