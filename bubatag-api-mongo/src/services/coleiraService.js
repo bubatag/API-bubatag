@@ -2,6 +2,48 @@
 const Usuario = require('../models/Usuario');
 
 class ColeiraService {
+  async cadastrarParaUsuario(usuarioId, dadosColeira) {
+    const usuario = await Usuario.findById(usuarioId);
+
+    if (!usuario) {
+      const erro = new Error('Usuário não encontrado.');
+      erro.status = 404;
+      throw erro;
+    }
+
+    if (
+      !dadosColeira ||
+      !dadosColeira.n_coleira ||
+      !dadosColeira.coleira_localizacao ||
+      !dadosColeira.IP ||
+      !dadosColeira.bubalino
+    ) {
+      const erro = new Error(
+        'Informe os dados da coleira e do bubalino.'
+      );
+      erro.status = 400;
+      throw erro;
+    }
+
+    const numeroExistente = usuario.coleiras.some(
+      (coleira) =>
+        coleira.n_coleira === dadosColeira.n_coleira
+    );
+
+    if (numeroExistente) {
+      const erro = new Error(
+        'Já existe uma coleira com esse número.'
+      );
+      erro.status = 409;
+      throw erro;
+    }
+
+    usuario.coleiras.push(dadosColeira);
+    await usuario.save();
+
+    return usuario.coleiras[usuario.coleiras.length - 1];
+  }
+
   async listarPorUsuario(usuarioId) {
     const usuario = await Usuario.findById(usuarioId)
       .select('coleiras');
@@ -26,7 +68,6 @@ class ColeiraService {
 
     const alertas = [];
 
-    // Estados que configuram alerta ou atenção imediata.
     const estadosDeAtencao = [
       'Alerta',
       'Estresse Térmico',
@@ -34,7 +75,6 @@ class ColeiraService {
     ];
 
     (usuario.coleiras || []).forEach((coleira) => {
-      // Ignora coleiras inativas ou sem animal associado.
       if (
         !coleira.ativo ||
         !coleira.bubalino ||
@@ -44,18 +84,21 @@ class ColeiraService {
       }
 
       const bubalino = coleira.bubalino;
-      const historicoEstresse = bubalino.historico_estresse || [];
+      const historicoEstresse =
+        bubalino.historico_estresse || [];
 
       if (historicoEstresse.length === 0) {
         return;
       }
 
-      // Pega o último evento de estresse registrado.
       const ultimoEstresse =
         historicoEstresse[historicoEstresse.length - 1];
 
-      // Inclui somente estados que exigem atenção.
-      if (estadosDeAtencao.includes(ultimoEstresse.estado_estresse)) {
+      if (
+        estadosDeAtencao.includes(
+          ultimoEstresse.estado_estresse
+        )
+      ) {
         const dadosBiometricos = bubalino.dados || [];
 
         const ultimosDados =
