@@ -27,7 +27,7 @@ const BubalinoSchema = new mongoose.Schema({
   raca: { type: String, required: true },
   n_etiqueta: { type: String, required: true },
   dt_nasc: { type: Date, required: true },
-  sexo: { type: String, enum: ['Masculino', 'Feminino'], required: true },
+  sexo: { type: String, enum: ['Macho', 'Fêmea'], required: true },
   ativo: { type: Boolean, default: true },
   dados: [DadoBiometricoSchema],
   historico_estresse: [HistoricoEstresseSchema],
