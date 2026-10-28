@@ -7,7 +7,7 @@ services:
       - "3000:3000"
     environment:
       PORT: 3000
-      MONGO_URI: mongodb://mongo:27017/bubatag
+      MONGO_URI: ${MONGO_URI}
       ML_SERVICE_URL: http://ml-service:8000
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
