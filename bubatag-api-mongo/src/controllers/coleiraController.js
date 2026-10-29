@@ -34,7 +34,7 @@ exports.cadastrarParaUsuario = async (req, res, next) => {
   }
 };
 
-// Lista todas as coleiras do usuário.
+// Lista somente as coleiras ativas do usuário.
 exports.listarPorUsuario = async (req, res, next) => {
   try {
     if (!validarUsuarioDaRota(req, res)) return;
@@ -110,12 +110,31 @@ exports.editar = async (req, res, next) => {
   }
 };
 
-// Exclui uma coleira sem bubalino associado.
+// Desativa uma coleira sem apagar seus dados.
 exports.excluir = async (req, res, next) => {
   try {
     if (!validarUsuarioDaRota(req, res)) return;
 
     const resultado = await coleiraService.excluir(
+      req.params.usuarioId,
+      req.params.coleiraId
+    );
+
+    res.status(200).json({
+      sucesso: true,
+      ...resultado
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reativa uma coleira anteriormente desativada.
+exports.reativar = async (req, res, next) => {
+  try {
+    if (!validarUsuarioDaRota(req, res)) return;
+
+    const resultado = await coleiraService.reativar(
       req.params.usuarioId,
       req.params.coleiraId
     );

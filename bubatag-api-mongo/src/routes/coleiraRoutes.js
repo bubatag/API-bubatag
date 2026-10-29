@@ -12,14 +12,14 @@ router.post(
   coleiraController.cadastrarParaUsuario
 );
 
-// Lista todas as coleiras do usuário.
+// Lista as coleiras ativas do usuário.
 router.get(
   '/usuario/:usuarioId',
   authMiddleware,
   coleiraController.listarPorUsuario
 );
 
-// Lista apenas as coleiras disponíveis para associação.
+// Lista apenas as coleiras ativas disponíveis para associação.
 router.get(
   '/usuario/:usuarioId/disponiveis',
   authMiddleware,
@@ -47,11 +47,18 @@ router.put(
   coleiraController.editar
 );
 
-// Exclui uma coleira.
+// Desativa uma coleira sem apagar seus dados.
 router.delete(
   '/usuario/:usuarioId/:coleiraId',
   authMiddleware,
   coleiraController.excluir
+);
+
+// Reativa uma coleira anteriormente desativada.
+router.patch(
+  '/usuario/:usuarioId/:coleiraId/reativar',
+  authMiddleware,
+  coleiraController.reativar
 );
 
 module.exports = router;

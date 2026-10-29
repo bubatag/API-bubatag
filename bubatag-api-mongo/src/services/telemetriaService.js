@@ -25,7 +25,22 @@ class TelemetriaService {
       (c) => c.n_coleira === n_coleira
     );
 
-    if (!coleira || !coleira.bubalino) {
+    if (!coleira) {
+      const erro = new Error(`Coleira ${n_coleira} não encontrada.`);
+      erro.status = 404;
+      throw erro;
+    }
+
+    // Impede o recebimento de telemetria de coleiras desativadas.
+    if (coleira.ativo === false) {
+      const erro = new Error(
+        `A coleira ${n_coleira} está desativada e não pode enviar telemetria.`
+      );
+      erro.status = 400;
+      throw erro;
+    }
+
+    if (!coleira.bubalino) {
       const erro = new Error(
         `Nenhum bubalino associado à coleira ${n_coleira}.`
       );

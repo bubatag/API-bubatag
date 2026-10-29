@@ -60,7 +60,7 @@ class ColeiraService {
     return usuario.coleiras[usuario.coleiras.length - 1];
   }
 
-  // Lista todas as coleiras do usuário.
+  // Lista somente as coleiras ativas do usuário.
   async listarPorUsuario(usuarioId) {
     const usuario = await Usuario.findById(usuarioId)
       .select('coleiras');
@@ -71,7 +71,9 @@ class ColeiraService {
       throw erro;
     }
 
-    return usuario.coleiras || [];
+    return (usuario.coleiras || []).filter(
+      (coleira) => coleira.ativo !== false
+    );
   }
 
   // Lista somente coleiras ativas que ainda não possuem búfalo.
@@ -272,7 +274,7 @@ class ColeiraService {
     return coleira;
   }
 
-  // Exclui uma coleira somente quando não possui búfalo associado.
+  // Desativa uma coleira sem apagar seus dados ou histórico.
   async excluir(usuarioId, coleiraId) {
     const usuario = await Usuario.findById(usuarioId);
 
@@ -290,19 +292,53 @@ class ColeiraService {
       throw erro;
     }
 
-    if (coleira.bubalino) {
-      const erro = new Error(
-        'Não é possível excluir uma coleira que possui um bubalino associado. Desassocie o bubalino antes de excluir.'
-      );
-      erro.status = 409;
+    if (coleira.ativo === false) {
+      const erro = new Error('Esta coleira já está inativa.');
+      erro.status = 400;
       throw erro;
     }
 
-    coleira.deleteOne();
+    coleira.ativo = false;
+
     await usuario.save();
 
     return {
-      mensagem: 'Coleira excluída com sucesso.'
+      mensagem: 'Coleira desativada com sucesso.',
+      coleira
+    };
+  }
+
+  // Reativa uma coleira anteriormente desativada.
+  async reativar(usuarioId, coleiraId) {
+    const usuario = await Usuario.findById(usuarioId);
+
+    if (!usuario) {
+      const erro = new Error('Usuário não encontrado.');
+      erro.status = 404;
+      throw erro;
+    }
+
+    const coleira = usuario.coleiras.id(coleiraId);
+
+    if (!coleira) {
+      const erro = new Error('Coleira não encontrada.');
+      erro.status = 404;
+      throw erro;
+    }
+
+    if (coleira.ativo !== false) {
+      const erro = new Error('Esta coleira já está ativa.');
+      erro.status = 400;
+      throw erro;
+    }
+
+    coleira.ativo = true;
+
+    await usuario.save();
+
+    return {
+      mensagem: 'Coleira reativada com sucesso.',
+      coleira
     };
   }
 
