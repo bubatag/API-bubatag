@@ -40,4 +40,18 @@ router.get(
   coleiraController.obterAlertas
 );
 
+// Edita os dados de uma coleira.
+router.put(
+  '/usuario/:usuarioId/:coleiraId',
+  authMiddleware,
+  coleiraController.editar
+);
+
+// Exclui uma coleira.
+router.delete(
+  '/usuario/:usuarioId/:coleiraId',
+  authMiddleware,
+  coleiraController.excluir
+);
+
 module.exports = router;

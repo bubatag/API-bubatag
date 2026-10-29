@@ -32,7 +32,6 @@ class ColeiraService {
       throw erro;
     }
 
-    // Evita números duplicados entre as coleiras do usuário.
     const numeroExistente = (usuario.coleiras || []).some(
       (coleira) =>
         String(coleira.n_coleira || '')
@@ -166,7 +165,6 @@ class ColeiraService {
       throw erro;
     }
 
-    // Aceita somente Macho ou Fêmea.
     if (!['Macho', 'Fêmea'].includes(sexo)) {
       const erro = new Error(
         'O sexo deve ser Macho ou Fêmea.'
@@ -175,7 +173,6 @@ class ColeiraService {
       throw erro;
     }
 
-    // Impede etiquetas duplicadas entre os búfalos do usuário.
     const etiquetaExistente = (usuario.coleiras || []).some(
       (outraColeira) =>
         outraColeira.bubalino &&
@@ -206,6 +203,107 @@ class ColeiraService {
     await usuario.save();
 
     return coleira;
+  }
+
+  // Edita os dados de uma coleira sem alterar o bubalino associado.
+  async editar(usuarioId, coleiraId, dadosAtualizados) {
+    const usuario = await Usuario.findById(usuarioId);
+
+    if (!usuario) {
+      const erro = new Error('Usuário não encontrado.');
+      erro.status = 404;
+      throw erro;
+    }
+
+    const coleira = usuario.coleiras.id(coleiraId);
+
+    if (!coleira) {
+      const erro = new Error('Coleira não encontrada.');
+      erro.status = 404;
+      throw erro;
+    }
+
+    const nColeira = String(
+      dadosAtualizados?.n_coleira ?? coleira.n_coleira
+    ).trim();
+
+    const localizacao = String(
+      dadosAtualizados?.coleira_localizacao ?? coleira.coleira_localizacao
+    ).trim();
+
+    const ip = String(
+      dadosAtualizados?.IP ?? coleira.IP
+    ).trim();
+
+    if (!nColeira || !localizacao || !ip) {
+      const erro = new Error(
+        'Informe o número da coleira, a localização e o IP.'
+      );
+      erro.status = 400;
+      throw erro;
+    }
+
+    const numeroExistente = (usuario.coleiras || []).some(
+      (outraColeira) =>
+        String(outraColeira._id) !== String(coleiraId) &&
+        String(outraColeira.n_coleira || '')
+          .trim()
+          .toLowerCase() === nColeira.toLowerCase()
+    );
+
+    if (numeroExistente) {
+      const erro = new Error(
+        'Já existe outra coleira com esse número.'
+      );
+      erro.status = 409;
+      throw erro;
+    }
+
+    coleira.n_coleira = nColeira;
+    coleira.coleira_localizacao = localizacao;
+    coleira.IP = ip;
+
+    if (dadosAtualizados.ativo !== undefined) {
+      coleira.ativo = dadosAtualizados.ativo;
+    }
+
+    await usuario.save();
+
+    return coleira;
+  }
+
+  // Exclui uma coleira somente quando não possui búfalo associado.
+  async excluir(usuarioId, coleiraId) {
+    const usuario = await Usuario.findById(usuarioId);
+
+    if (!usuario) {
+      const erro = new Error('Usuário não encontrado.');
+      erro.status = 404;
+      throw erro;
+    }
+
+    const coleira = usuario.coleiras.id(coleiraId);
+
+    if (!coleira) {
+      const erro = new Error('Coleira não encontrada.');
+      erro.status = 404;
+      throw erro;
+    }
+
+    if (coleira.bubalino) {
+      const erro = new Error(
+        'Não é possível excluir uma coleira que possui um bubalino associado. Desassocie o bubalino antes de excluir.'
+      );
+      erro.status = 409;
+      throw erro;
+    }
+
+    coleira.deleteOne();
+    await usuario.save();
+
+    return {
+      mensagem: 'Coleira excluída com sucesso.'
+    };
   }
 
   // Busca os alertas dos búfalos associados a coleiras.

@@ -89,7 +89,47 @@ exports.associarBubalino = async (req, res, next) => {
   }
 };
 
-// Mantém a consulta de alertas existente.
+// Edita os dados de uma coleira.
+exports.editar = async (req, res, next) => {
+  try {
+    if (!validarUsuarioDaRota(req, res)) return;
+
+    const coleira = await coleiraService.editar(
+      req.params.usuarioId,
+      req.params.coleiraId,
+      req.body
+    );
+
+    res.status(200).json({
+      sucesso: true,
+      mensagem: 'Coleira atualizada com sucesso.',
+      coleira
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Exclui uma coleira sem bubalino associado.
+exports.excluir = async (req, res, next) => {
+  try {
+    if (!validarUsuarioDaRota(req, res)) return;
+
+    const resultado = await coleiraService.excluir(
+      req.params.usuarioId,
+      req.params.coleiraId
+    );
+
+    res.status(200).json({
+      sucesso: true,
+      ...resultado
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Consulta os alertas do usuário.
 exports.obterAlertas = async (req, res, next) => {
   try {
     if (!validarUsuarioDaRota(req, res)) return;
