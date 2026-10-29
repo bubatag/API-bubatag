@@ -3,6 +3,7 @@ const cors = require('cors');
 
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const coleiraRoutes = require('./routes/coleiraRoutes');
+const bubalinoRoutes = require('./routes/bubalinoRoutes');
 const telemetriaRoutes = require('./routes/telemetriaRoutes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 const reportRoutes = require('./routes/reportRoutes');
@@ -16,6 +17,7 @@ app.use(express.json());
 // Registro de Rotas
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/coleiras', coleiraRoutes);
+app.use('/api/bubalinos', bubalinoRoutes);
 app.use('/api/telemetria', telemetriaRoutes);
 app.use('/api/relatorios', reportRoutes);
 
