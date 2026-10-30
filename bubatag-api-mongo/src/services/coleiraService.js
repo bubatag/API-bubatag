@@ -57,16 +57,28 @@ class ColeiraService {
     return usuario.coleiras[usuario.coleiras.length - 1];
   }
 
-  // Lista todas as coleiras, ativas e inativas.
+  // Lista todas as coleiras, ativas e inativas,
+  // incluindo os dados do bubalino associado.
   async listarPorUsuario(usuarioId) {
     const usuario = await Usuario.findById(usuarioId)
-      .select('coleiras');
+      .select('coleiras bubalinos');
 
     if (!usuario) {
       throw criarErro('Usuário não encontrado.', 404);
     }
 
-    return usuario.coleiras || [];
+    const bubalinos = usuario.bubalinos || [];
+
+    return (usuario.coleiras || []).map((coleira) => {
+      const bubalino = coleira.bubalino_id
+        ? bubalinos.id(coleira.bubalino_id)
+        : null;
+
+      return {
+        ...coleira.toObject(),
+        bubalino: bubalino ? bubalino.toObject() : null,
+      };
+    });
   }
 
   // Lista coleiras ativas e sem bubalino associado.
@@ -315,7 +327,7 @@ class ColeiraService {
     };
   }
 
-  // Encerra o vínculo, mas preserva o cadastro e o histórico do animal.
+  // Desvincula o bubalino sem apagar seu cadastro ou histórico.
   async desvincularBubalino(usuarioId, coleiraId) {
     const usuario = await Usuario.findById(usuarioId);
 

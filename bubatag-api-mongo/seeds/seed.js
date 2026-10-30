@@ -4,12 +4,38 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Usuario = require('../src/models/Usuario');
 
-// O Seed utiliza somente o banco local.
-// No Docker, o endereço será fornecido pelo docker-compose.
-// Fora do Docker, utiliza a porta 27018 publicada pelo Compose.
-const MONGO_SEED_URI =
+// ======================================
+// CONFIGURAÇÃO DO BANCO
+// ======================================
+
+const MONGO_LOCAL_URI =
   process.env.SEED_MONGO_URI ||
   'mongodb://127.0.0.1:27018/bubatag';
+
+const MONGO_ATLAS_URI = process.env.MONGO_URI;
+
+const ambiente = (process.argv[2] || 'local').toLowerCase();
+
+if (!['local', 'atlas'].includes(ambiente)) {
+  throw new Error(
+    'Ambiente inválido. Utilize: npm run seed ou npm run seed -- atlas'
+  );
+}
+
+const MONGO_SEED_URI =
+  ambiente === 'atlas'
+    ? MONGO_ATLAS_URI
+    : MONGO_LOCAL_URI;
+
+if (!MONGO_SEED_URI) {
+  throw new Error(
+    `URI do MongoDB ${ambiente.toUpperCase()} não configurada.`
+  );
+}
+
+// ======================================
+// DADOS DE DEMONSTRAÇÃO
+// ======================================
 
 const criarDadosBiometricos = () => {
   const agora = new Date();
@@ -110,9 +136,14 @@ const criarColeira = (
   };
 };
 
+// ======================================
+// USUÁRIOS DE DEMONSTRAÇÃO
+// ======================================
+
 const usuariosDemo = () => {
-  // IDs são criados antes dos vínculos para manter
-  // as referências entre coleiras e bubalinos corretas.
+  // Os IDs são criados antes dos vínculos para
+  // manter as referências entre coleiras e bubalinos.
+
   const bubalino1Id = new mongoose.Types.ObjectId();
   const bubalino2Id = new mongoose.Types.ObjectId();
   const bubalino3Id = new mongoose.Types.ObjectId();
@@ -203,37 +234,116 @@ const usuariosDemo = () => {
   ];
 };
 
+// ======================================
+// VERIFICAÇÃO DE DUPLICIDADES
+// ======================================
+
+const verificarConflitos = async (dados) => {
+  const conflitos = [];
+
+  const usuarioExistente = await Usuario.findOne({
+    email: dados.email
+  }).select('_id email');
+
+  if (usuarioExistente) {
+    return {
+      usuarioExistente: true,
+      conflitos: []
+    };
+  }
+
+  const ccirExistente = await Usuario.findOne({
+    CCIR: dados.CCIR
+  }).select('_id CCIR');
+
+  if (ccirExistente) {
+    conflitos.push(`CCIR já cadastrado: ${dados.CCIR}`);
+  }
+
+  for (const bubalino of dados.bubalinos) {
+    const etiquetaExistente = await Usuario.findOne({
+      'bubalinos.n_etiqueta': bubalino.n_etiqueta
+    }).select('_id');
+
+    if (etiquetaExistente) {
+      conflitos.push(
+        `Etiqueta já cadastrada: ${bubalino.n_etiqueta}`
+      );
+    }
+  }
+
+  for (const coleira of dados.coleiras) {
+    const coleiraExistente = await Usuario.findOne({
+      'coleiras.n_coleira': coleira.n_coleira
+    }).select('_id');
+
+    if (coleiraExistente) {
+      conflitos.push(
+        `Coleira já cadastrada: ${coleira.n_coleira}`
+      );
+    }
+  }
+
+  return {
+    usuarioExistente: false,
+    conflitos
+  };
+};
+
+// ======================================
+// EXECUÇÃO DO SEED
+// ======================================
+
 const executarSeed = async () => {
   try {
     console.log('\n======================================');
     console.log(' INICIANDO SEED DO BUBATAG');
     console.log('======================================');
 
-    console.log('[SEED] Conectando ao MongoDB local...');
+    console.log(
+      `[SEED] Ambiente selecionado: ${ambiente.toUpperCase()}`
+    );
+
+    console.log('[SEED] Conectando ao MongoDB...');
 
     await mongoose.connect(MONGO_SEED_URI, {
       serverSelectionTimeoutMS: 5000
     });
 
-    console.log('[SEED] Conectado ao banco local.');
-    console.log('[SEED] Banco:', mongoose.connection.host);
+    console.log('[SEED] Conexão estabelecida.');
+    console.log('[SEED] Banco:', mongoose.connection.name);
+    console.log('[SEED] Servidor:', mongoose.connection.host);
 
     const usuarios = usuariosDemo();
 
     let criados = 0;
     let ignorados = 0;
+    let conflitosEncontrados = 0;
 
     for (const dados of usuarios) {
-      const usuarioExistente = await Usuario.findOne({
-        email: dados.email
-      });
+      console.log(`\n[SEED] Verificando: ${dados.email}`);
 
-      if (usuarioExistente) {
+      const verificacao = await verificarConflitos(dados);
+
+      if (verificacao.usuarioExistente) {
         console.log(
-          `[SEED] Usuário já existe. Ignorando: ${dados.email}`
+          `[SEED] Usuário já existe. Nenhuma alteração realizada: ${dados.email}`
         );
 
         ignorados++;
+        continue;
+      }
+
+      if (verificacao.conflitos.length > 0) {
+        console.log(
+          `[SEED] Cadastro não realizado: ${dados.email}`
+        );
+
+        verificacao.conflitos.forEach((conflito) => {
+          console.log(`[SEED] CONFLITO: ${conflito}`);
+        });
+
+        conflitosEncontrados++;
         continue;
       }
 
@@ -242,7 +352,15 @@ const executarSeed = async () => {
       await novoUsuario.save();
 
       console.log(
-        `[SEED] Usuário criado: ${dados.email}`
+        `[SEED] Usuário criado com sucesso: ${dados.email}`
+      );
+
+      console.log(
+        `[SEED] Bubalinos cadastrados: ${dados.bubalinos.length}`
+      );
+
+      console.log(
+        `[SEED] Coleiras cadastradas: ${dados.coleiras.length}`
       );
 
       criados++;
@@ -250,8 +368,10 @@ const executarSeed = async () => {
 
     console.log('\n======================================');
     console.log(' SEED FINALIZADO');
+    console.log(` Ambiente: ${ambiente.toUpperCase()}`);
     console.log(` Usuários criados: ${criados}`);
     console.log(` Usuários ignorados: ${ignorados}`);
+    console.log(` Cadastros com conflitos: ${conflitosEncontrados}`);
     console.log('======================================\n');
 
     console.log('CREDENCIAIS DE DEMONSTRAÇÃO:');
@@ -264,7 +384,10 @@ const executarSeed = async () => {
     process.exitCode = 1;
 
   } finally {
-    await mongoose.disconnect();
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+
     console.log('[SEED] Conexão encerrada.');
   }
 };
