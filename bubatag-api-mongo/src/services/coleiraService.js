@@ -1,228 +1,211 @@
 
 const Usuario = require('../models/Usuario');
 
+function criarErro(mensagem, status) {
+  const erro = new Error(mensagem);
+  erro.status = status;
+  return erro;
+}
+
 class ColeiraService {
-  // Cadastra uma coleira sem exigir um búfalo associado.
+  // Cadastra uma coleira sem exigir um bubalino associado.
   async cadastrarParaUsuario(usuarioId, dadosColeira) {
     const usuario = await Usuario.findById(usuarioId);
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
-    const nColeira = String(
-      dadosColeira?.n_coleira || ''
-    ).trim();
-
+    const nColeira = String(dadosColeira?.n_coleira || '').trim();
     const localizacao = String(
       dadosColeira?.coleira_localizacao || ''
     ).trim();
-
-    const ip = String(
-      dadosColeira?.IP || ''
-    ).trim();
+    const ip = String(dadosColeira?.IP || '').trim();
 
     if (!nColeira || !localizacao || !ip) {
-      const erro = new Error(
-        'Informe o número da coleira, a localização e o IP.'
+      throw criarErro(
+        'Informe o número da coleira, a localização e o IP.',
+        400
       );
-      erro.status = 400;
-      throw erro;
     }
 
     const numeroExistente = (usuario.coleiras || []).some(
       (coleira) =>
-        String(coleira.n_coleira || '')
-          .trim()
-          .toLowerCase() === nColeira.toLowerCase()
+        String(coleira.n_coleira || '').trim().toLowerCase() ===
+        nColeira.toLowerCase()
     );
 
     if (numeroExistente) {
-      const erro = new Error(
-        'Já existe uma coleira com esse número.'
+      throw criarErro(
+        'Já existe uma coleira com esse número.',
+        409
       );
-      erro.status = 409;
-      throw erro;
     }
 
-    const novaColeira = {
+    usuario.coleiras.push({
       n_coleira: nColeira,
       coleira_localizacao: localizacao,
       IP: ip,
-      ativo: dadosColeira.ativo ?? true
-    };
+      ativo: true,
+      excluido_em: null,
+      bubalino_id: null,
+      historico_vinculos: [],
+    });
 
-    usuario.coleiras.push(novaColeira);
     await usuario.save();
 
     return usuario.coleiras[usuario.coleiras.length - 1];
   }
 
-  // Lista somente as coleiras ativas do usuário.
+  // Lista todas as coleiras, ativas e inativas.
   async listarPorUsuario(usuarioId) {
     const usuario = await Usuario.findById(usuarioId)
       .select('coleiras');
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
-    return (usuario.coleiras || []).filter(
-      (coleira) => coleira.ativo !== false
-    );
+    return usuario.coleiras || [];
   }
 
-  // Lista somente coleiras ativas que ainda não possuem búfalo.
+  // Lista coleiras ativas e sem bubalino associado.
   async listarDisponiveisParaUsuario(usuarioId) {
     const usuario = await Usuario.findById(usuarioId)
       .select('coleiras');
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
     return (usuario.coleiras || []).filter(
       (coleira) =>
         coleira.ativo !== false &&
-        !coleira.bubalino
+        !coleira.excluido_em &&
+        !coleira.bubalino_id
     );
   }
 
-  // Associa um búfalo a uma coleira já cadastrada.
-  async associarBubalino(
-    usuarioId,
-    coleiraId,
-    dadosBubalino
-  ) {
+  // Cadastra um bubalino independente e associa à coleira.
+  async associarBubalino(usuarioId, coleiraId, dadosBubalino) {
     const usuario = await Usuario.findById(usuarioId);
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
     const coleira = usuario.coleiras.id(coleiraId);
 
     if (!coleira) {
-      const erro = new Error('Coleira não encontrada.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Coleira não encontrada.', 404);
+    }
+
+    if (coleira.excluido_em) {
+      throw criarErro('Esta coleira foi excluída.', 400);
     }
 
     if (coleira.ativo === false) {
-      const erro = new Error('A coleira está inativa.');
-      erro.status = 400;
-      throw erro;
+      throw criarErro('A coleira está inativa.', 400);
     }
 
-    if (coleira.bubalino) {
-      const erro = new Error(
-        'Esta coleira já está associada a um búfalo.'
+    if (coleira.bubalino_id) {
+      throw criarErro(
+        'Esta coleira já está associada a um bubalino.',
+        409
       );
-      erro.status = 409;
-      throw erro;
     }
 
-    const raca = String(
-      dadosBubalino?.raca || ''
-    ).trim();
-
-    const etiqueta = String(
-      dadosBubalino?.n_etiqueta || ''
-    ).trim();
-
+    const raca = String(dadosBubalino?.raca || '').trim();
+    const etiqueta = String(dadosBubalino?.n_etiqueta || '').trim();
     const dtNasc = dadosBubalino?.dt_nasc;
     const sexo = dadosBubalino?.sexo;
 
     if (!raca || !etiqueta || !dtNasc || !sexo) {
-      const erro = new Error(
-        'Informe raça, número da etiqueta, data de nascimento e sexo.'
+      throw criarErro(
+        'Informe raça, número da etiqueta, data de nascimento e sexo.',
+        400
       );
-      erro.status = 400;
-      throw erro;
     }
 
     const dataNascimento = new Date(dtNasc);
 
     if (Number.isNaN(dataNascimento.getTime())) {
-      const erro = new Error(
-        'A data de nascimento é inválida.'
-      );
-      erro.status = 400;
-      throw erro;
+      throw criarErro('A data de nascimento é inválida.', 400);
     }
 
     if (dataNascimento > new Date()) {
-      const erro = new Error(
-        'A data de nascimento não pode estar no futuro.'
+      throw criarErro(
+        'A data de nascimento não pode estar no futuro.',
+        400
       );
-      erro.status = 400;
-      throw erro;
     }
 
     if (!['Macho', 'Fêmea'].includes(sexo)) {
-      const erro = new Error(
-        'O sexo deve ser Macho ou Fêmea.'
-      );
-      erro.status = 400;
-      throw erro;
+      throw criarErro('O sexo deve ser Macho ou Fêmea.', 400);
     }
 
-    const etiquetaExistente = (usuario.coleiras || []).some(
-      (outraColeira) =>
-        outraColeira.bubalino &&
-        String(outraColeira.bubalino.n_etiqueta || '')
-          .trim()
-          .toLowerCase() === etiqueta.toLowerCase()
+    const etiquetaExistente = (usuario.bubalinos || []).some(
+      (bubalino) =>
+        !bubalino.excluido_em &&
+        String(bubalino.n_etiqueta || '').trim().toLowerCase() ===
+          etiqueta.toLowerCase()
     );
 
     if (etiquetaExistente) {
-      const erro = new Error(
-        'Já existe um búfalo com essa etiqueta.'
+      throw criarErro(
+        'Já existe um bubalino com essa etiqueta.',
+        409
       );
-      erro.status = 409;
-      throw erro;
     }
 
-    coleira.bubalino = {
+    usuario.bubalinos.push({
       raca,
       n_etiqueta: etiqueta,
       dt_nasc: dataNascimento,
       sexo,
       ativo: dadosBubalino.ativo ?? true,
+      excluido_em: null,
       dados: [],
       historico_estresse: [],
-      localizacao: []
-    };
+      localizacao: [],
+    });
+
+    const bubalino =
+      usuario.bubalinos[usuario.bubalinos.length - 1];
+
+    coleira.bubalino_id = bubalino._id;
+
+    coleira.historico_vinculos.push({
+      bubalino_id: bubalino._id,
+      data_inicio: new Date(),
+      data_fim: null,
+      ativo: true,
+    });
 
     await usuario.save();
 
-    return coleira;
+    return {
+      coleira,
+      bubalino,
+    };
   }
 
-  // Edita os dados de uma coleira sem alterar o bubalino associado.
+  // Edita os dados cadastrais da coleira.
   async editar(usuarioId, coleiraId, dadosAtualizados) {
     const usuario = await Usuario.findById(usuarioId);
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
     const coleira = usuario.coleiras.id(coleiraId);
 
     if (!coleira) {
-      const erro = new Error('Coleira não encontrada.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Coleira não encontrada.', 404);
+    }
+
+    if (coleira.excluido_em) {
+      throw criarErro('Esta coleira foi excluída.', 400);
     }
 
     const nColeira = String(
@@ -230,7 +213,8 @@ class ColeiraService {
     ).trim();
 
     const localizacao = String(
-      dadosAtualizados?.coleira_localizacao ?? coleira.coleira_localizacao
+      dadosAtualizados?.coleira_localizacao ??
+        coleira.coleira_localizacao
     ).trim();
 
     const ip = String(
@@ -238,64 +222,55 @@ class ColeiraService {
     ).trim();
 
     if (!nColeira || !localizacao || !ip) {
-      const erro = new Error(
-        'Informe o número da coleira, a localização e o IP.'
+      throw criarErro(
+        'Informe o número da coleira, a localização e o IP.',
+        400
       );
-      erro.status = 400;
-      throw erro;
     }
 
     const numeroExistente = (usuario.coleiras || []).some(
       (outraColeira) =>
         String(outraColeira._id) !== String(coleiraId) &&
-        String(outraColeira.n_coleira || '')
-          .trim()
-          .toLowerCase() === nColeira.toLowerCase()
+        String(outraColeira.n_coleira || '').trim().toLowerCase() ===
+          nColeira.toLowerCase()
     );
 
     if (numeroExistente) {
-      const erro = new Error(
-        'Já existe outra coleira com esse número.'
+      throw criarErro(
+        'Já existe outra coleira com esse número.',
+        409
       );
-      erro.status = 409;
-      throw erro;
     }
 
     coleira.n_coleira = nColeira;
     coleira.coleira_localizacao = localizacao;
     coleira.IP = ip;
 
-    if (dadosAtualizados.ativo !== undefined) {
-      coleira.ativo = dadosAtualizados.ativo;
-    }
-
     await usuario.save();
 
     return coleira;
   }
 
-  // Desativa uma coleira sem apagar seus dados ou histórico.
+  // Desativa sem desvincular o bubalino.
   async excluir(usuarioId, coleiraId) {
     const usuario = await Usuario.findById(usuarioId);
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
     const coleira = usuario.coleiras.id(coleiraId);
 
     if (!coleira) {
-      const erro = new Error('Coleira não encontrada.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Coleira não encontrada.', 404);
+    }
+
+    if (coleira.excluido_em) {
+      throw criarErro('Esta coleira foi excluída.', 400);
     }
 
     if (coleira.ativo === false) {
-      const erro = new Error('Esta coleira já está inativa.');
-      erro.status = 400;
-      throw erro;
+      throw criarErro('Esta coleira já está inativa.', 400);
     }
 
     coleira.ativo = false;
@@ -304,32 +279,30 @@ class ColeiraService {
 
     return {
       mensagem: 'Coleira desativada com sucesso.',
-      coleira
+      coleira,
     };
   }
 
-  // Reativa uma coleira anteriormente desativada.
+  // Reativa a coleira mantendo o vínculo existente.
   async reativar(usuarioId, coleiraId) {
     const usuario = await Usuario.findById(usuarioId);
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
     const coleira = usuario.coleiras.id(coleiraId);
 
     if (!coleira) {
-      const erro = new Error('Coleira não encontrada.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Coleira não encontrada.', 404);
+    }
+
+    if (coleira.excluido_em) {
+      throw criarErro('Esta coleira foi excluída.', 400);
     }
 
     if (coleira.ativo !== false) {
-      const erro = new Error('Esta coleira já está ativa.');
-      erro.status = 400;
-      throw erro;
+      throw criarErro('Esta coleira já está ativa.', 400);
     }
 
     coleira.ativo = true;
@@ -338,18 +311,61 @@ class ColeiraService {
 
     return {
       mensagem: 'Coleira reativada com sucesso.',
-      coleira
+      coleira,
     };
   }
 
-  // Busca os alertas dos búfalos associados a coleiras.
+  // Encerra o vínculo, mas preserva o cadastro e o histórico do animal.
+  async desvincularBubalino(usuarioId, coleiraId) {
+    const usuario = await Usuario.findById(usuarioId);
+
+    if (!usuario) {
+      throw criarErro('Usuário não encontrado.', 404);
+    }
+
+    const coleira = usuario.coleiras.id(coleiraId);
+
+    if (!coleira) {
+      throw criarErro('Coleira não encontrada.', 404);
+    }
+
+    if (!coleira.bubalino_id) {
+      throw criarErro(
+        'Esta coleira não possui bubalino associado.',
+        400
+      );
+    }
+
+    const vinculoAtivo = [...(coleira.historico_vinculos || [])]
+      .reverse()
+      .find(
+        (vinculo) =>
+          vinculo.ativo === true &&
+          String(vinculo.bubalino_id) ===
+            String(coleira.bubalino_id)
+      );
+
+    if (vinculoAtivo) {
+      vinculoAtivo.ativo = false;
+      vinculoAtivo.data_fim = new Date();
+    }
+
+    coleira.bubalino_id = null;
+
+    await usuario.save();
+
+    return {
+      mensagem: 'Bubalino desvinculado com sucesso.',
+      coleira,
+    };
+  }
+
+  // Busca alertas usando a nova estrutura independente.
   async buscarAlertas(usuarioId) {
     const usuario = await Usuario.findById(usuarioId);
 
     if (!usuario) {
-      const erro = new Error('Usuário não encontrado.');
-      erro.status = 404;
-      throw erro;
+      throw criarErro('Usuário não encontrado.', 404);
     }
 
     const alertas = [];
@@ -357,59 +373,52 @@ class ColeiraService {
     const estadosDeAtencao = [
       'Alerta',
       'Estresse Térmico',
-      'Estresse Crítico'
+      'Estresse Crítico',
     ];
 
     (usuario.coleiras || []).forEach((coleira) => {
       if (
-        !coleira.ativo ||
-        !coleira.bubalino ||
-        !coleira.bubalino.ativo
+        coleira.ativo === false ||
+        coleira.excluido_em ||
+        !coleira.bubalino_id
       ) {
         return;
       }
 
-      const bubalino = coleira.bubalino;
-      const historicoEstresse =
-        bubalino.historico_estresse || [];
+      const bubalino = (usuario.bubalinos || []).id(
+        coleira.bubalino_id
+      );
 
-      if (historicoEstresse.length === 0) {
+      if (!bubalino || bubalino.ativo === false || bubalino.excluido_em) {
         return;
       }
 
-      const ultimoEstresse =
-        historicoEstresse[historicoEstresse.length - 1];
+      const historicoEstresse = bubalino.historico_estresse || [];
+
+      const ultimoEstresse = [...historicoEstresse]
+        .reverse()
+        .find((item) => item.ativo !== false);
 
       if (
-        !estadosDeAtencao.includes(
-          ultimoEstresse.estado_estresse
-        )
+        !ultimoEstresse ||
+        !estadosDeAtencao.includes(ultimoEstresse.estado_estresse)
       ) {
         return;
       }
 
-      const dadosBiometricos = bubalino.dados || [];
+      const ultimosDados = [...(bubalino.dados || [])]
+        .reverse()
+        .find((item) => item.ativo !== false);
 
-      const ultimosDados =
-        dadosBiometricos.length > 0
-          ? dadosBiometricos[dadosBiometricos.length - 1]
-          : null;
+      const ultimaLocalizacao = [...(bubalino.localizacao || [])]
+        .reverse()
+        .find((item) => item.ativo !== false);
 
-      const localizacoes = bubalino.localizacao || [];
-
-      const ultimaLocalizacao =
-        localizacoes.length > 0
-          ? localizacoes[localizacoes.length - 1]
-          : null;
-
-      let prioridade = 'MEDIA';
-
-      if (
+      const prioridade =
         ultimoEstresse.estado_estresse === 'Estresse Crítico' ||
         ultimoEstresse.estado_estresse === 'Estresse Térmico'
-      ) {
-        prioridade = 'ALTA';
-      }
+          ? 'ALTA'
+          : 'MEDIA';
 
       alertas.push({
         coleira_id: coleira._id,
@@ -423,7 +432,7 @@ class ColeiraService {
         alerta: {
           estado: ultimoEstresse.estado_estresse,
           prioridade,
-          data: ultimoEstresse.data_estresse
+          data: ultimoEstresse.data_estresse,
         },
 
         telemetria_atual: {
@@ -435,7 +444,7 @@ class ColeiraService {
             : null,
           data_leitura: ultimosDados
             ? ultimosDados.data
-            : null
+            : null,
         },
 
         localizacao_atual: {
@@ -444,8 +453,11 @@ class ColeiraService {
             : null,
           longitude: ultimaLocalizacao
             ? ultimaLocalizacao.longitude
-            : null
-        }
+            : null,
+          data: ultimaLocalizacao
+            ? ultimaLocalizacao.data
+            : null,
+        },
       });
     });
 

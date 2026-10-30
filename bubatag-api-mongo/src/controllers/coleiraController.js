@@ -2,7 +2,9 @@
 const coleiraService = require('../services/coleiraService');
 
 function validarUsuarioDaRota(req, res) {
-  if (String(req.usuario.id) !== String(req.params.usuarioId)) {
+  const usuarioAutenticado = req.usuario.id || req.usuario._id;
+
+  if (String(usuarioAutenticado) !== String(req.params.usuarioId)) {
     res.status(403).json({
       sucesso: false,
       mensagem: 'Você não tem permissão para acessar este usuário.'
@@ -14,7 +16,7 @@ function validarUsuarioDaRota(req, res) {
   return true;
 }
 
-// Cadastra uma coleira sem exigir um búfalo associado.
+// Cadastra uma coleira sem exigir um bubalino associado.
 exports.cadastrarParaUsuario = async (req, res, next) => {
   try {
     if (!validarUsuarioDaRota(req, res)) return;
@@ -34,7 +36,7 @@ exports.cadastrarParaUsuario = async (req, res, next) => {
   }
 };
 
-// Lista somente as coleiras ativas do usuário.
+// Lista todas as coleiras do usuário, ativas e inativas.
 exports.listarPorUsuario = async (req, res, next) => {
   try {
     if (!validarUsuarioDaRota(req, res)) return;
@@ -42,22 +44,6 @@ exports.listarPorUsuario = async (req, res, next) => {
     const coleiras = await coleiraService.listarPorUsuario(
       req.params.usuarioId
     );
-
-    res.status(200).json(coleiras);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Lista somente as coleiras ativas e sem búfalo associado.
-exports.listarDisponiveisParaUsuario = async (req, res, next) => {
-  try {
-    if (!validarUsuarioDaRota(req, res)) return;
-
-    const coleiras =
-      await coleiraService.listarDisponiveisParaUsuario(
-        req.params.usuarioId
-      );
 
     res.status(200).json({
       sucesso: true,
@@ -68,12 +54,30 @@ exports.listarDisponiveisParaUsuario = async (req, res, next) => {
   }
 };
 
-// Associa um búfalo a uma coleira existente.
+// Lista coleiras ativas, disponíveis e sem bubalino associado.
+exports.listarDisponiveisParaUsuario = async (req, res, next) => {
+  try {
+    if (!validarUsuarioDaRota(req, res)) return;
+
+    const coleiras = await coleiraService.listarDisponiveisParaUsuario(
+      req.params.usuarioId
+    );
+
+    res.status(200).json({
+      sucesso: true,
+      coleiras
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Associa um bubalino a uma coleira existente.
 exports.associarBubalino = async (req, res, next) => {
   try {
     if (!validarUsuarioDaRota(req, res)) return;
 
-    const coleira = await coleiraService.associarBubalino(
+    const resultado = await coleiraService.associarBubalino(
       req.params.usuarioId,
       req.params.coleiraId,
       req.body
@@ -81,8 +85,9 @@ exports.associarBubalino = async (req, res, next) => {
 
     res.status(201).json({
       sucesso: true,
-      mensagem: 'Búfalo associado à coleira com sucesso.',
-      coleira
+      mensagem: 'Bubalino associado à coleira com sucesso.',
+      bubalino: resultado.bubalino,
+      coleira: resultado.coleira
     });
   } catch (error) {
     next(error);
@@ -110,7 +115,7 @@ exports.editar = async (req, res, next) => {
   }
 };
 
-// Desativa uma coleira sem apagar seus dados.
+// Desativa uma coleira sem apagar seus dados ou desvincular o bubalino.
 exports.excluir = async (req, res, next) => {
   try {
     if (!validarUsuarioDaRota(req, res)) return;
@@ -148,6 +153,25 @@ exports.reativar = async (req, res, next) => {
   }
 };
 
+// Desvincula o bubalino sem apagar seu cadastro ou histórico.
+exports.desvincularBubalino = async (req, res, next) => {
+  try {
+    if (!validarUsuarioDaRota(req, res)) return;
+
+    const resultado = await coleiraService.desvincularBubalino(
+      req.params.usuarioId,
+      req.params.coleiraId
+    );
+
+    res.status(200).json({
+      sucesso: true,
+      ...resultado
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Consulta os alertas do usuário.
 exports.obterAlertas = async (req, res, next) => {
   try {
@@ -157,7 +181,10 @@ exports.obterAlertas = async (req, res, next) => {
       req.params.usuarioId
     );
 
-    res.status(200).json(alertas);
+    res.status(200).json({
+      sucesso: true,
+      alertas
+    });
   } catch (error) {
     next(error);
   }

@@ -5,32 +5,39 @@ const router = express.Router();
 const coleiraController = require('../controllers/coleiraController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Cadastra uma coleira sem búfalo associado.
+// Cadastra uma coleira sem bubalino associado.
 router.post(
   '/usuario/:usuarioId',
   authMiddleware,
   coleiraController.cadastrarParaUsuario
 );
 
-// Lista as coleiras ativas do usuário.
+// Lista todas as coleiras do usuário, ativas e inativas.
 router.get(
   '/usuario/:usuarioId',
   authMiddleware,
   coleiraController.listarPorUsuario
 );
 
-// Lista apenas as coleiras ativas disponíveis para associação.
+// Lista coleiras ativas e disponíveis para associação.
 router.get(
   '/usuario/:usuarioId/disponiveis',
   authMiddleware,
   coleiraController.listarDisponiveisParaUsuario
 );
 
-// Associa um búfalo a uma coleira já cadastrada.
+// Associa um bubalino a uma coleira já cadastrada.
 router.post(
   '/usuario/:usuarioId/:coleiraId/bubalino',
   authMiddleware,
   coleiraController.associarBubalino
+);
+
+// Desvincula o bubalino sem apagar seu cadastro ou histórico.
+router.patch(
+  '/usuario/:usuarioId/:coleiraId/desvincular',
+  authMiddleware,
+  coleiraController.desvincularBubalino
 );
 
 // Consulta os alertas do usuário.
@@ -47,7 +54,7 @@ router.put(
   coleiraController.editar
 );
 
-// Desativa uma coleira sem apagar seus dados.
+// Desativa uma coleira sem apagar seus dados ou desvincular o bubalino.
 router.delete(
   '/usuario/:usuarioId/:coleiraId',
   authMiddleware,

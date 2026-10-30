@@ -2,6 +2,12 @@
 const Usuario = require('../models/Usuario');
 const stressAnalyzer = require('./stressAnalyzer');
 
+function criarErro(mensagem, status) {
+  const erro = new Error(mensagem);
+  erro.status = status;
+  return erro;
+}
+
 class TelemetriaService {
   async registrarLeitura({
     n_coleira,
@@ -11,62 +17,76 @@ class TelemetriaService {
     longitude,
     estado_estresse,
   }) {
+    const numeroColeira = String(n_coleira || '').trim();
+
+    if (!numeroColeira) {
+      throw criarErro('Informe o número da coleira.', 400);
+    }
+
     const usuario = await Usuario.findOne({
-      'coleiras.n_coleira': n_coleira,
+      'coleiras.n_coleira': numeroColeira,
     });
 
     if (!usuario) {
-      const erro = new Error(`Coleira ${n_coleira} não encontrada.`);
-      erro.status = 404;
-      throw erro;
+      throw criarErro(
+        `Coleira ${numeroColeira} não encontrada.`,
+        404
+      );
     }
 
     const coleira = usuario.coleiras.find(
-      (c) => c.n_coleira === n_coleira
+      (item) => item.n_coleira === numeroColeira
     );
 
-    if (!coleira) {
-      const erro = new Error(`Coleira ${n_coleira} não encontrada.`);
-      erro.status = 404;
-      throw erro;
+    if (!coleira || coleira.excluido_em) {
+      throw criarErro(
+        `Coleira ${numeroColeira} não encontrada.`,
+        404
+      );
     }
 
-    // Impede o recebimento de telemetria de coleiras desativadas.
+    // Impede leituras de coleiras inativas.
     if (coleira.ativo === false) {
-      const erro = new Error(
-        `A coleira ${n_coleira} está desativada e não pode enviar telemetria.`
+      throw criarErro(
+        `A coleira ${numeroColeira} está desativada e não pode enviar telemetria.`,
+        400
       );
-      erro.status = 400;
-      throw erro;
     }
 
-    if (!coleira.bubalino) {
-      const erro = new Error(
-        `Nenhum bubalino associado à coleira ${n_coleira}.`
+    // Verifica se existe um bubalino associado.
+    if (!coleira.bubalino_id) {
+      throw criarErro(
+        `Nenhum bubalino associado à coleira ${numeroColeira}.`,
+        400
       );
-      erro.status = 400;
-      throw erro;
+    }
+
+    // Localiza o animal no cadastro independente.
+    const bubalino = usuario.bubalinos.id(
+      coleira.bubalino_id
+    );
+
+    if (!bubalino || bubalino.excluido_em) {
+      throw criarErro(
+        `O bubalino associado à coleira ${numeroColeira} não foi encontrado.`,
+        404
+      );
+    }
+
+    // Impede leituras de animais inativos.
+    if (bubalino.ativo === false) {
+      throw criarErro(
+        `O bubalino ${bubalino.n_etiqueta} está inativo e não pode receber telemetria.`,
+        400
+      );
     }
 
     const agora = new Date();
-    const bubalino = coleira.bubalino;
-
-    if (!bubalino.dados) {
-      bubalino.dados = [];
-    }
-
-    if (!bubalino.localizacao) {
-      bubalino.localizacao = [];
-    }
-
-    if (!bubalino.historico_estresse) {
-      bubalino.historico_estresse = [];
-    }
 
     const possuiTemperatura = temperatura !== undefined;
     const possuiBatimentos = batimento_cardiaco !== undefined;
 
-    // Salva as medições quando ambos os valores foram enviados.
+    // Salva os dados biométricos quando ambos foram enviados.
     if (possuiBatimentos && possuiTemperatura) {
       bubalino.dados.push({
         batimento_cardiaco: Number(batimento_cardiaco),
@@ -82,13 +102,14 @@ class TelemetriaService {
         latitude: String(latitude),
         longitude: String(longitude),
         ativo: true,
+        data: agora,
       });
     }
 
     let analiseResultado = null;
     let erroClassificacao = false;
 
-    // Se o estado foi informado manualmente, mantém esse comportamento.
+    // Mantém a possibilidade de informar o estado manualmente.
     if (estado_estresse) {
       bubalino.historico_estresse.push({
         estado_estresse,
@@ -96,7 +117,7 @@ class TelemetriaService {
         ativo: true,
       });
     } else if (possuiBatimentos && possuiTemperatura) {
-      // Solicita a classificação ao serviço de IA em Python.
+      // Solicita a classificação ao serviço de IA.
       try {
         analiseResultado = await stressAnalyzer.avaliarEstresse(
           batimento_cardiaco,
@@ -109,8 +130,8 @@ class TelemetriaService {
           ativo: true,
         });
       } catch (erro) {
-        // A leitura será salva mesmo se a IA estiver indisponível.
         erroClassificacao = true;
+
         console.error(
           'Falha ao classificar telemetria com a IA:',
           erro.message
@@ -118,8 +139,8 @@ class TelemetriaService {
       }
     }
 
-    // Persiste a telemetria e o histórico disponível.
-    usuario.markModified('coleiras');
+    // Persiste os dados no cadastro independente do bubalino.
+    usuario.markModified('bubalinos');
     await usuario.save();
 
     const estadoFinal = analiseResultado
@@ -128,20 +149,20 @@ class TelemetriaService {
 
     const nivelAlerta = analiseResultado
       ? analiseResultado.nivelAlerta
-      : estado_estresse
-        ? 'NAO_AVALIADO'
-        : 'NAO_AVALIADO';
+      : 'NAO_AVALIADO';
 
     return {
       sucesso: true,
-      n_coleira,
+      n_coleira: numeroColeira,
+      coleira_id: coleira._id,
+      bubalino_id: bubalino._id,
       n_etiqueta: bubalino.n_etiqueta,
       timestamp: agora,
       status_estresse: estadoFinal,
       nivel_alerta: nivelAlerta,
-      classificacao_disponivel: !erroClassificacao && (
-        Boolean(analiseResultado) || Boolean(estado_estresse)
-      ),
+      classificacao_disponivel:
+        !erroClassificacao &&
+        (Boolean(analiseResultado) || Boolean(estado_estresse)),
       mensagem: erroClassificacao
         ? 'Telemetria salva, mas não foi possível classificar os dados. Verifique o serviço de IA.'
         : 'Telemetria salva com sucesso.',
